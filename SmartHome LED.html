@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Home LED Control</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+    
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      min-width: 350px;
+    }
+    
+    h1 { font-size: 28px; margin-bottom: 10px; color: #e94560; }
+    .subtitle { color: #888; margin-bottom: 30px; }
+    
+    .led-icon {
+      font-size: 80px;
+      margin: 20px 0;
+      transition: all 0.3s;
+    }
+    
+    .led-icon.on { 
+      text-shadow: 0 0 30px #ffeb3b, 0 0 60px #ffeb3b;
+      transform: scale(1.1);
+    }
+    
+    .status-text {
+      font-size: 24px;
+      margin: 15px 0;
+      font-weight: bold;
+    }
+    
+    .btn-group {
+      margin-top: 25px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+    
+    button {
+      padding: 15px 40px;
+      font-size: 18px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: bold;
+    }
+    
+    .btn-on {
+      background: #00d9ff;
+      color: #1a1a2e;
+      box-shadow: 0 4px 15px rgba(0,217,255,0.4);
+    }
+    
+    .btn-on:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,217,255,0.6);
+    }
+    
+    .btn-off {
+      background: #555;
+      color: white;
+    }
+    
+    .btn-off:hover {
+      background: #777;
+      transform: translateY(-2px);
+    }
+    
+    .connection-status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .connected { background: rgba(0,255,0,0.1); color: #00ff88; }
+    .disconnected { background: rgba(255,0,0,0.1); color: #ff4444; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🏠 Smart Home</h1>
+    <p class="subtitle">IoT LED Control</p>
+    
+    <div class="led-icon" id="ledIcon">🌑</div>
+    <div class="status-text" id="statusText">กำลังเชื่อมต่อ...</div>
+    
+    <div class="btn-group">
+      <button class="btn-on" onclick="setLED(true)">🔴 เปิดไฟ</button>
+      <button class="btn-off" onclick="setLED(false)">⚫ ปิดไฟ</button>
+    </div>
+    
+    <div class="connection-status" id="connStatus">⏳ เชื่อมต่อ Firebase...</div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  
+  <script>
+    // 🔥🔥🔥 ใส่ค่าของคุณตรงนี้ (COPY จากหน้า Firebase SDK) 🔥🔥🔥
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",                    // ← ใส่ apiKey
+      authDomain: "YOUR_PROJECT.firebaseapp.com", // ← ใส่ authDomain
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com", // ← ใส่ databaseURL
+      projectId: "YOUR_PROJECT",                 // ← ใส่ projectId
+      storageBucket: "YOUR_PROJECT.appspot.com",  // ← ใส่ storageBucket
+      messagingSenderId: "YOUR_SENDER_ID",        // ← ใส่ messagingSenderId
+      appId: "YOUR_APP_ID"                        // ← ใส่ appId
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const ledRef = db.ref('led/status');
+    
+    const ledIcon = document.getElementById('ledIcon');
+    const statusText = document.getElementById('statusText');
+    const connStatus = document.getElementById('connStatus');
+    
+    // ตรวจสอบการเชื่อมต่อ
+    const connectedRef = db.ref('.info/connected');
+    connectedRef.on('value', (snap) => {
+      if (snap.val() === true) {
+        connStatus.textContent = '✅ เชื่อมต่อ Firebase สำเร็จ';
+        connStatus.className = 'connection-status connected';
+      } else {
+        connStatus.textContent = '❌ ขาดการเชื่อมต่อ';
+        connStatus.className = 'connection-status disconnected';
+      }
+    });
+    
+    // อ่านค่า LED แบบ Real-time
+    ledRef.on('value', (snapshot) => {
+      const isOn = snapshot.val();
+      
+      if (isOn === true) {
+        ledIcon.textContent = '💡';
+        ledIcon.classList.add('on');
+        statusText.textContent = '🔴 ไฟเปิดอยู่';
+        statusText.style.color = '#00d9ff';
+      } else {
+        ledIcon.textContent = '🌑';
+        ledIcon.classList.remove('on');
+        statusText.textContent = '⚫ ไฟปิดอยู่';
+        statusText.style.color = '#888';
+      }
+    });
+    
+    // ส่งคำสั่งควบคุม LED
+    function setLED(status) {
+      ledRef.set(status)
+        .then(() => console.log('✅ ส่งคำสั่งสำเร็จ:', status))
+        .catch((error) => console.error('❌ ส่งคำสั่งไม่สำเร็จ:', error));
+    }
+  </script>
+</body>
+</html>
